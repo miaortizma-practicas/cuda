@@ -44,7 +44,7 @@ void preProcess(uchar4 **h_inputImageRGBA, uchar4 **h_outputImageRGBA,
   cv::cvtColor(image, imageInputRGBA, cv::COLOR_BGR2RGBA);
 
   //allocate memory for the output
-  imageOutputRGBA.create(image.rows, image.cols, cv::CV_8UC4);
+  imageOutputRGBA.create(image.rows, image.cols, cv::8UC4);
 
   //This shouldn't ever happen given the way the images are created
   //at least based upon my limited understanding of OpenCV, but better to check
