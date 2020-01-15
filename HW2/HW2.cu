@@ -1,17 +1,7 @@
 #include <opencv2/core/core.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
 #include <opencv2/imgcodecs/imgcodecs.hpp>
-#include <stdio.h>
-#include <stdlib.h>
-#include <iostream>
 #include <string>
-
-inline cudaError_t checkCudaErrors(cudaError_t err) {
-  if (err != cudaSuccess) {
-    fprintf(stderr, "CUDA Runtime error: %s\n", cudaGetErrorString(err));
-  }
-  return err;
-}
 
 cv::Mat imageInputRGBA;
 cv::Mat imageOutputRGBA;
@@ -24,6 +14,11 @@ float *h_filter__;
 size_t numRows() { return imageInputRGBA.rows; }
 size_t numCols() { return imageInputRGBA.cols; }
 
+//return types are void since any internal error will be handled by quitting
+//no point in returning error codes...
+//returns a pointer to an RGBA version of the input image
+//and a pointer to the single channel grey-scale output
+//on both the host and device
 void preProcess(uchar4 **h_inputImageRGBA, uchar4 **h_outputImageRGBA,
                 uchar4 **d_inputImageRGBA, uchar4 **d_outputImageRGBA,
                 unsigned char **d_redBlurred,
@@ -44,7 +39,7 @@ void preProcess(uchar4 **h_inputImageRGBA, uchar4 **h_outputImageRGBA,
   cv::cvtColor(image, imageInputRGBA, cv::COLOR_BGR2RGBA);
 
   //allocate memory for the output
-  imageOutputRGBA.create(image.rows, image.cols, cv::8UC4);
+  imageOutputRGBA.create(image.rows, image.cols, CV_8UC4);
 
   //This shouldn't ever happen given the way the images are created
   //at least based upon my limited understanding of OpenCV, but better to check
@@ -107,7 +102,7 @@ void preProcess(uchar4 **h_inputImageRGBA, uchar4 **h_outputImageRGBA,
 
 void postProcess(const std::string& output_file) {
   const int numPixels = numRows() * numCols();
-  //copy the output back to thehost
+  //copy the output back to the host
   checkCudaErrors(cudaMemcpy(imageOutputRGBA.ptr<unsigned char>(0), d_outputImageRGBA__, sizeof(uchar4) * numPixels, cudaMemcpyDeviceToHost));
 
   cv::Mat imageOutputBGR;
@@ -120,9 +115,6 @@ void postProcess(const std::string& output_file) {
   cudaFree(d_outputImageRGBA__);
   delete[] h_filter__;
 }
-
-
-
 
 __global__
 void gaussian_blur(const unsigned char* const inputChannel,
@@ -283,56 +275,3 @@ void cleanup() {
   checkCudaErrors(cudaFree(d_green));
   checkCudaErrors(cudaFree(d_blue));
 }
-
-
-
-int main(int argc, char **argv) {
-  uchar4 *h_inputImageRGBA,  *d_inputImageRGBA;
-  uchar4 *h_outputImageRGBA, *d_outputImageRGBA;
-  unsigned char *d_redBlurred, *d_greenBlurred, *d_blueBlurred;
-
-  float *h_filter;
-  int    filterWidth;
-
-  std::string input_file;
-  std::string output_file;
-  if (argc == 3) {
-    input_file  = std::string(argv[1]);
-    output_file = std::string(argv[2]);
-  }
-  else {
-    std::cerr << "Usage: ./hw input_file output_file" << std::endl;
-    exit(1);
-  }
-  //load the image and give us our input and output pointers
-  preProcess(&h_inputImageRGBA, &h_outputImageRGBA, &d_inputImageRGBA, &d_outputImageRGBA,
-             &d_redBlurred, &d_greenBlurred, &d_blueBlurred,
-             &h_filter, &filterWidth, input_file);
-
-  allocateMemoryAndCopyToGPU(numRows(), numCols(), h_filter, filterWidth);
-  //GpuTimer timer;
-  //timer.Start();
-  //call the students' code
-  your_gaussian_blur(h_inputImageRGBA, d_inputImageRGBA, d_outputImageRGBA, numRows(), numCols(),
-                     d_redBlurred, d_greenBlurred, d_blueBlurred, filterWidth);
-  //timer.Stop();
-  cudaDeviceSynchronize(); checkCudaErrors(cudaGetLastError());
-  //int err = printf("%f msecs.\n", timer.Elapsed());
-  int err = -1;
-
-  if (err < 0) {
-    //Couldn't print! Probably the student closed stdout - bad news
-    std::cerr << "Couldn't print timing information! STDOUT Closed!" << std::endl;
-    exit(1);
-  }
-
-  cleanup();
-  //check results and output the blurred image
-  postProcess(output_file);
-
-  checkCudaErrors(cudaFree(d_redBlurred));
-  checkCudaErrors(cudaFree(d_greenBlurred));
-  checkCudaErrors(cudaFree(d_blueBlurred));
-
-  return 0;
-} 
