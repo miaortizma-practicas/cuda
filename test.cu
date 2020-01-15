@@ -41,10 +41,10 @@ void preProcess(uchar4 **h_inputImageRGBA, uchar4 **h_outputImageRGBA,
     exit(1);
   }
 
-  cv::cvtColor(image, imageInputRGBA, CV_BGR2RGBA);
+  cv::cvtColor(image, imageInputRGBA, cv:COLOR_BGR2RGBA);
 
   //allocate memory for the output
-  imageOutputRGBA.create(image.rows, image.cols, CV_8UC4);
+  imageOutputRGBA.create(image.rows, image.cols, cv::CV_8UC4);
 
   //This shouldn't ever happen given the way the images are created
   //at least based upon my limited understanding of OpenCV, but better to check
@@ -111,7 +111,7 @@ void postProcess(const std::string& output_file) {
   checkCudaErrors(cudaMemcpy(imageOutputRGBA.ptr<unsigned char>(0), d_outputImageRGBA__, sizeof(uchar4) * numPixels, cudaMemcpyDeviceToHost));
 
   cv::Mat imageOutputBGR;
-  cv::cvtColor(imageOutputRGBA, imageOutputBGR, CV_RGBA2BGR);
+  cv::cvtColor(imageOutputRGBA, imageOutputBGR, cv::COLOR_RGBA2BGR);
   //output the image
   cv::imwrite(output_file.c_str(), imageOutputBGR);
 
